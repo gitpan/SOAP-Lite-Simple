@@ -1,0 +1,14 @@
+# http://module-build.sourceforge.net/META-spec.html
+#XXXXXXX This is a prototype!!!  It will change in the future!!! XXXXX#
+name:         SOAP-Lite-Simple
+version:      0.1
+version_from: 
+installdirs:  site
+requires:
+    SOAP::Data::Builder:           0.8
+    SOAP::Lite:                    0.6
+    Test::More:                    0.6
+    XML::LibXML:                   0.6
+
+distribution_type: module
+generated_by: ExtUtils::MakeMaker version 6.17

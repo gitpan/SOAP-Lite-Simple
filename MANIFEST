@@ -1,0 +1,7 @@
+Changes
+MANIFEST
+Makefile.PL
+lib/SOAP/Lite/Simple.pm
+lib/SOAP/Lite/Simple/DotNet.pm
+t/01_basic.t
+META.yml                                 Module meta-data (added by MakeMaker)
