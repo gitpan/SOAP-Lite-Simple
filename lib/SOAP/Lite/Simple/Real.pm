@@ -1,4 +1,4 @@
-package SOAP::Lite::Simple::DotNet;
+package SOAP::Lite::Simple::Real;
 
 use strict;
 use Carp;
@@ -10,24 +10,25 @@ $VERSION = 0.2;
 
 =head1 NAME
 
-SOAP::Lite::Simple::DotNet - talk with .net webservices
+SOAP::Lite::Simple::Real - talk with 'real' webservices, e.g. not .net
 
 =head1 DESCRIPTION
 
-This package helps in talking with .net servers, it just needs
+This package helps in talking with SOAP webservers, it just needs
 a bit of XML thrown at it and you get some XML back.
 It's designed to be REALLY simple to use, it doesn't try to 
 be cleaver in any way (patches for 'cleaverness' welcome).
 
-The major difference to 'SOAP::Lite::Simple::Real' is it will submit as:
+The major difference to SOAP::Lite::Simple::DotNet is it will submit as:
 
-SOAPAction: "http://www.yourdomain.com/services/GetSellerActivity"
+SOAPAction: "http://www.yourdomain.com/services#GetSellerActivity"
 
-and does not put in namesp<X> 
+and namesp<X> will be added to the XML submitted, including for
+the xmlns.
 
 =head1 SYNOPSIS
 
-  If your .net services.asmx looks like this:
+  If your service looks like this:
 
   <?xml version="1.0" encoding="utf-8"?>
   <soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
@@ -40,9 +41,9 @@ and does not put in namesp<X>
 
 
   # Create an object with basic SOAP::Lite config stuff
-  my $dotnet = SOAP::Lite::Simple::DotNet->new({
+  my $soap_simple = SOAP::Lite::Simple::Real->new({
     uri 		=> 'http://www.yourdomain.com/services',
-    proxy 		=> 'http://www.yourproxy.com/services/services.asmx',
+    proxy 		=> 'http://www.yourproxy.com/services',
     xmlns 		=> 'http://www.yourdomain.com/services',
     soapversion 	=> '1.1', # defaults to 1.1
     timeout		=> '30', # detauls to 30 seconds
@@ -53,10 +54,10 @@ and does not put in namesp<X>
 
   my $user_id = '900109';
   my $xml = "<userId _value_type='long'>$user_id</userId>";
-  # IMPORTANT: you must set _value_type to long - matching the requirement in the services.asmx
+  # IMPORTANT: you must set _value_type to long - matching the requirement of the SOAP server
 
   # Actually do the call
-  if( $dotnet->fetch({
+  if( $soap_simple->fetch({
                          'method' => 'GetActivity',
                          'xml' => $xml,
                      }) ) {
@@ -68,7 +69,7 @@ and does not put in namesp<X>
 
   } else {
     # Got an error
-    print "Problem using service:" . $dotnet->error();
+    print "Problem using service:" . $soap_simple->error();
 
   }
 
@@ -76,9 +77,9 @@ and does not put in namesp<X>
 
 =head2 new()
 
-  my $dotnet->SOAP::Lite::Simple::DotNet->new({
+  my $soap_simple->SOAP::Lite::Simple::Real->new({
     uri 	=> 'http://www.yourdomain.com/services',
-    proxy 	=> 'http://www.yourproxy.com/services/services.asmx',
+    proxy 	=> 'http://www.yourproxy.com/services',
     xmlns 	=> 'http://www.yourdomain.com/services',
     soapversion => '1.1', # defaults to 1.1
     timeout	=> '30', # detauls to 30 seconds
@@ -89,12 +90,11 @@ supplied, otherwise it will croak.
 
 =head2 fetch()
 
-  # Generate the required XML, this is the bit after the Method XML element
-  # in the services.asmx descriptor for this method (see SYNOPSIS).
+  # Generate the required XML (you don't need the SOAP wrapper or method part of the XML
   my $user_id = '900109';
   my $xml = "<userId _value_type='long'>$user_id</userId>";
 
-  if(my $xml_result = $dotnet->fetch({ method => 'GetActivity', xml => $xml }) {
+  if(my $xml_result = $soap_simple->fetch({ method => 'GetActivity', xml => $xml }) {
 	# You got some XML back
 	my $parser = XML::LibXML->new();
 	my $doc = $parser->parse_string($xml_result);
@@ -103,7 +103,7 @@ supplied, otherwise it will croak.
 
   } else {
 	# There was some sort of error
-	print $dotnet->error() . "\n";
+	print $soap_simple->error() . "\n";
   }
 
 This method actually calls the web service, it takes a method name
@@ -128,24 +128,12 @@ errors there could be to do it my self).
 sub _call {
 	my ($self,$method) = @_;
 
-	# No, I don't know why this has to be a sub, it just does,
-	# it's to do with the on_action which .net requires so it
-	# submits as $uri/$method, rather than $uri#$method	
-	my $soap_action = sub {return $self->uri() . '/' . $method};
-	
-	my $caller = $self->{soap}
+	my $res = $self->{soap}
  			->uri($self->uri())
 			->proxy($self->proxy(), timeout => $self->timeout())
-			->on_action( $soap_action );
+			->soapversion($self->soapversion())
+			->$method( $self->{sdb}->to_soap_data() );
 	
-	$caller->soapversion($self->soapversion());
-
-	# Create a SOAP::Data node for the method name
-	my $method_name = SOAP::Data->name($method)->attr({'xmlns' => $self->xmlns()});
-
-	# Execute the SOAP Request and get the resulting XML
-	my $res = $caller->call( $method_name => $self->{sdb}->to_soap_data());
-
 	return $res;
 
 }
@@ -163,23 +151,23 @@ contained in the XML returned so you must validate this.
 
 =head1 HOW TO DEBUG
 
-At the top of your script, before 'use SOAP::Lite::Simple::DotNet' add:
+At the top of your script, before 'use SOAP::Lite::Simple::Real' add:
 
 use SOAP::Lite (  +trace => 'all',
                   readable => 1,
                   outputxml => 1,
                );
 
-It may or may not help, .net services don't give you many helpful error messages!
+It may or may not help, not all services don't give you helpful error messages!
 At least you can see what's being submitted and returned. It can be the
 smallest thing that causes a problem, mis-typed data (see _value_type in xml),
 or typo in xmlns line.
 
 =head1 BUGS
 
-This is only designed to work with .net services, It may work
+This is only designed to work with generic services, it may work
  with others. I haven't found any open webservices which I can use
-to test against, but as far as I'm aware it all works - .net services
+to test against, but as far as I'm aware it all works - web services
 are all standard.. right.. :) ?
 
 =head1 AUTHOR
@@ -195,7 +183,7 @@ terms as perl itself.
 
 =head1 SEE ALSO
 
-  <SOAP::Lite::Simple>, <SOAP::Lite::Simple::Real> 
+  <SOAP::Lite::Simple>, <SOAP::Lite::Simple::DotNet> 
 
 =cut
 

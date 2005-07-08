@@ -14,7 +14,7 @@ my @methods = qw(results uri xmlns proxy soapversion timeout error);
 
 __PACKAGE__->mk_accessors(@methods);
 
-$VERSION = 0.1;
+$VERSION = 0.2;
 
 ######
 my $debug = 0;
@@ -27,7 +27,8 @@ SOAP::Lite::Simple - Simple frame work for talking with web services
 
 This package is the base class for talking with web services,
 there are specific modules to use depending on the type
-of service you are calling, e.g. SOAP::Lite::Simple::DotNet
+of service you are calling, e.g. <SOAP::Lite::Simple::DotNet> or
+<SOAP::Lite::Simple::Real>
 
 This package helps in talking with web services, it just needs
 a bit of XML thrown at it and you get some XML back.
@@ -169,7 +170,7 @@ sub fetch {
 	my $xml;
 	eval { $xml = $parser->parse_string($conf->{xml}) };
 	if($@) {
-		$self->error('Error parsing XML: ' . $@);
+		$self->error('Error parsing your XML: ' . $@);
 		return undef;
 	}
 
@@ -202,7 +203,7 @@ sub fetch {
   $self->error();
 
 If fetch returns undef then check this method, it will either be that the XML
-was not correctly formatted and XML::LibXML could not parse it, or there was
+you supplied was not correctly formatted and XML::LibXML could not parse it, or there was
 a transport error with the web service. Actual application errors will be
 contained in the XML returned so you must validate this.
 
@@ -275,7 +276,7 @@ sub debug {
 
 =head1 HOW TO DEBUG
 
-At the top of your script, before 'use SOAP::Lite::SimpleDotNet' add:
+At the top of your script, before 'use SOAP::Lite::Simple::<TYPE>' add:
 
 use SOAP::Lite (  +trace => 'all',
                   readable => 1,
@@ -289,6 +290,10 @@ or typo in xmlns line.
 
 If the type of module (e.g. SOAP::Lite::Simple::DotNet) doesn't work, switch
 to one of the other ones and see if that helps. 
+
+=head1 SEE ALSO
+
+<SOAP::Lite::Simple::DotNet> <SOAP::Lite::Simple::Real>
 
 =head1 AUTHOR
 

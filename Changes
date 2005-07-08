@@ -1,5 +1,9 @@
 Revision history
 
+0.2 Fri 8th July 2005
+	- Added Simple::Real
+	- Few more tests and doc changes
+
 0.1 Thur 7th July 2005
 	- First public release
 

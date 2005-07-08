@@ -3,7 +3,7 @@
 use strict;
 use blib;
 
-use Test::More tests => 6;
+use Test::More tests => 8;
 
 ######
 # Test SOAP::Lite::Simple
@@ -29,12 +29,22 @@ eval {
 };
 is($@,'','new() - created object ok');
 
+
+unless(my $foo = $obj->fetch({ method => 'test', 'xml' => 'invalid xml'})) {
+	like($obj->error(), qr/Error parsing your XML/,'fetch() - graceful croak on dodgy XML');
+}
+
 #######
 # Test SOAP::Lite::Simple::DotNet
 #######
 
 BEGIN { use_ok( 'SOAP::Lite::Simple::DotNet' ); }
 
+########
+# Test SOAP::Lite::Simple::Real
+########
+
+BEGIN { use_ok( 'SOAP::Lite::Simple::Real' ); }
 
 
 # I don't know of a open web service for testing so
