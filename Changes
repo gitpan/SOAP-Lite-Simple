@@ -1,5 +1,15 @@
 Revision history
 
+1.0 Sat 23rd July 2005
+	- Upped version to 1 as I can't see any more changes
+	- Added in validation of the XML respoonce
+		- check it is valid
+		- check for soap:Fault/faultstring
+		- check for soapenv:Fault/faultstring
+	- Updated documentation to mention
+		- results()
+		- results_xml()
+
 0.2 Fri 8th July 2005
 	- Added Simple::Real
 	- Few more tests and doc changes

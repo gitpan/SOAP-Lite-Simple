@@ -10,14 +10,11 @@ use vars qw($VERSION);
 
 use base qw(Class::Accessor::Chained::Fast);
 
-my @methods = qw(results uri xmlns proxy soapversion timeout error);
+my @methods = qw(results results_xml uri xmlns proxy soapversion timeout error);
 
 __PACKAGE__->mk_accessors(@methods);
 
-$VERSION = 0.2;
-
-######
-my $debug = 0;
+$VERSION = 0.3;
 
 =head1 NAME
 
@@ -77,7 +74,7 @@ be cleaver in any way (patches for 'cleaverness' welcome).
 
 =head2 new()
 
-  my $dotnet->SOAP::Lite::Simple::DotNet->new({
+  my $soap_simple->SOAP::Lite::Simple::DotNet->new({
     uri 	=> 'http://www.yourdomain.com/services',
     proxy 	=> 'http://www.yourproxy.com/services/services.asmx',
     xmlns 	=> 'http://www.yourdomain.com/services',
@@ -126,11 +123,11 @@ sub new {
 =head2 fetch()
 
   # Generate the required XML, this is the bit after the Method XML element
-  # in the services.asmx descriptor for this method (see SYNOPSIS).
+  # in the services.asmx descriptor for this method (see Soap::Lite::Simple::DotNet SYNOPSIS).
   my $user_id = '900109';
   my $xml = "<userId _value_type='long'>$user_id</userId>";
 
-  if(my $xml_result = $dotnet->fetch({ method => 'GetActivity', xml => $xml }) {
+  if(my $xml_result = $soap_simple->fetch({ method => 'GetActivity', xml => $xml }) {
 	# You got some XML back
 	my $parser = XML::LibXML->new();
 	my $doc = $parser->parse_string($xml_result);
@@ -139,7 +136,7 @@ sub new {
 
   } else {
 	# There was some sort of error
-	print $dotnet->error() . "\n";
+	print $soap_simple->error() . "\n";
   }
 
 This method actually calls the web service, it takes a method name
@@ -149,22 +146,15 @@ undef will be returned and the error() will be set.
 
 If all is successful the the XML string will be parsed back.
 This still has all the SOAP wrapper stuff on it, so you'll
-want to strip that out. IMPORTANT: you still need to validate
-the XML contains the data you are expecting, if the server
-has encountered an application error it may report this
-in the XML.
+want to strip that out. 
 
-If someone writes a 'validate_responce' method which takes
-the XML result and check's it for SOAP errors I'd be
-happy to add it (but I don't know/care enough about what
-errors there could be to do it my self).
+We check for soap:Fault and soapenv:Fault in the returned XML,
+anything else you'll need to check for yourself.
 
 =cut
 
 sub fetch {
 	my ($self,$conf) = @_;
-
-	$self->debug('Method: ' . $conf->{method});
 
 	# process the XML	
 	my $xml;
@@ -187,15 +177,43 @@ sub fetch {
 	# execute the call in the relevant style
 	my $res = $self->_call($conf->{method});
 
-        if(!defined $res or $res =~ /^\d/) {
+	if (!defined $res or $res =~ /^\d/) {
                 # Got a web error - well, if it was XML it wouldn't start with a digit!
                 $self->error($res);
                 return undef;
         } else {
-                $self->results($res);
-                return $res;
-        }
+		# Generate xml object from the responce
+		my $res_xml;
+		eval { $res_xml = $parser->parse_string($res) };
+        	if($@) {
+			# Not valid xml
+			$self->error('Unable to parse returned data as XML');
+			return undef;
+		} else {
+			
+			# Now look for faults
+			# I hope it's only soap:Fault and soapenv:Fault I need to check
+			my @fault_types = ('soap:Fault','soapenv:Fault');	
 
+			foreach my $type (@fault_types) {
+				# Stick in an eval block as it blows up if searching for a namespace
+				# which isn't there, and one of them won't be!	
+				eval {
+					if(my $nodes = $res_xml->findnodes("//$type/faultstring") ) {
+						# There is some sort of fault, get the human readable string
+						$self->error($nodes->get_node(1)->findvalue('.' , $nodes));	
+					}
+				};
+			}
+			# See if there was a fault
+			return undef if $self->error();
+
+			# All looking good
+			$self->results_xml($res_xml);
+			$self->results($res);
+			return $res;
+		}
+	}
 }
 
 =head2 error()
@@ -203,9 +221,22 @@ sub fetch {
   $self->error();
 
 If fetch returns undef then check this method, it will either be that the XML
-you supplied was not correctly formatted and XML::LibXML could not parse it, or there was
-a transport error with the web service. Actual application errors will be
-contained in the XML returned so you must validate this.
+you supplied was not correctly formatted and XML::LibXML could not parse it, there was
+a transport error with the web service or either soap:Fault and soapenv:Fault error
+messages were returned in the XML.
+
+=head2 results();
+
+  my $results = $soap_simple->results();
+
+Can be called after fetch() to get the raw XML, if fetch was sucessful.
+
+=head2 results_xml();
+
+  my $results_as_xml = $soap_simple->results_xml();
+
+Can be called after fetch() to get the XML::LibXML Document element of the returned
+xml, as long as fetch was sucessful.
 
 =cut
 
@@ -216,7 +247,6 @@ sub _process_node {
 	my ($self,$conf) = @_;
 
 	# Loop over the XML and generate the data
-	$self->debug('xml->soap node: ' . $conf->{node}->nodeName());	
 	
 	# Set up the parent if there was one
 	my $parent = '';
@@ -267,11 +297,6 @@ sub _process_node {
 			}) if $node->nodeType != 3;
 		}
 	}
-}
-
-sub debug {
-	my ($self,$msg) = @_;
-	carp "DEBUG: $msg\n" if $debug;
 }
 
 =head1 HOW TO DEBUG

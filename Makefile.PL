@@ -1,6 +1,6 @@
 use ExtUtils::MakeMaker;
 
-my $VERSION = '0.2';
+my $VERSION = '1.0';
 
 my $ABSTRACT = "Module for simply interacting with webservices";
 

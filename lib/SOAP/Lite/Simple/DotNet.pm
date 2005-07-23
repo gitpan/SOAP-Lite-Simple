@@ -6,7 +6,7 @@ use Carp;
 use vars qw($VERSION);
 use base qw(SOAP::Lite::Simple);
 
-$VERSION = 0.2;
+$VERSION = 1.0;
 
 =head1 NAME
 
@@ -16,8 +16,7 @@ SOAP::Lite::Simple::DotNet - talk with .net webservices
 
 This package helps in talking with .net servers, it just needs
 a bit of XML thrown at it and you get some XML back.
-It's designed to be REALLY simple to use, it doesn't try to 
-be cleaver in any way (patches for 'cleaverness' welcome).
+It's designed to be REALLY simple to use.
 
 The major difference to 'SOAP::Lite::Simple::Real' is it will submit as:
 
@@ -113,15 +112,10 @@ undef will be returned and the error() will be set.
 
 If all is successful the the XML string will be parsed back.
 This still has all the SOAP wrapper stuff on it, so you'll
-want to strip that out. IMPORTANT: you still need to validate
-the XML contains the data you are expecting, if the server
-has encountered an application error it may report this
-in the XML.
+want to strip that out.
 
-If someone writes a 'validate_responce' method which takes
-the XML result and check's it for SOAP errors I'd be
-happy to add it (but I don't know/care enough about what
-errors there could be to do it my self).
+We check for soap:Fault and soapenv:Fault in the returned XML,
+anything else you'll need to check for yourself.
 
 =cut
 
@@ -155,9 +149,22 @@ sub _call {
   $self->error();
 
 If fetch returns undef then check this method, it will either be that the XML
-was not correctly formatted and XML::LibXML could not parse it, or there was
-a transport error with the web service. Actual application errors will be
-contained in the XML returned so you must validate this.
+you supplied was not correctly formatted and XML::LibXML could not parse it, there was
+a transport error with the web service or either soap:Fault and soapenv:Fault error
+messages were returned in the XML.
+
+=head2 results();
+
+  my $results = $dotnet->results();
+
+Can be called after fetch() to get the raw XML, if fetch was sucessful.
+
+=head2 results_xml();
+
+  my $results_as_xml = $dotnet->results_xml();
+
+Can be called after fetch() to get the XML::LibXML Document element of the returned
+xml, as long as fetch was sucessful.
 
 =cut
 
