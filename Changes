@@ -1,7 +1,15 @@
 Revision history
 
+1.1 Mon 1st Aug 2005
+	- Updated documentation
+	- Added XML wrapper so can parse several top level nodes,
+	  removed before converting to SOAP Data structure.
+	- Switched to check for Fault/faultstring, any Namespace
+	- Added strip_default_xmlns which defaults to true
+	  makes parsing results easier
+	- Added t/02_dotnet.pl
+
 1.0 Sat 23rd July 2005
-	- Upped version to 1 as I can't see any more changes
 	- Added in validation of the XML respoonce
 		- check it is valid
 		- check for soap:Fault/faultstring

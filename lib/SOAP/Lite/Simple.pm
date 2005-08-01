@@ -10,11 +10,11 @@ use vars qw($VERSION);
 
 use base qw(Class::Accessor::Chained::Fast);
 
-my @methods = qw(results results_xml uri xmlns proxy soapversion timeout error);
+my @methods = qw(results results_xml uri xmlns proxy soapversion timeout error strip_default_xmlns);
 
 __PACKAGE__->mk_accessors(@methods);
 
-$VERSION = 0.3;
+$VERSION = 1.1;
 
 =head1 NAME
 
@@ -44,7 +44,7 @@ be cleaver in any way (patches for 'cleaverness' welcome).
   use base qw(SOAP::Lite::Simple);
 
   sub _call {
-	my ($self,$conf) = @_;
+	my ($self,$method) = @_;
 
 	# Impliment it! - below is the code from Simple::DotNet
 
@@ -80,17 +80,24 @@ be cleaver in any way (patches for 'cleaverness' welcome).
     xmlns 	=> 'http://www.yourdomain.com/services',
     soapversion => '1.1', # defaults to 1.1
     timeout	=> '30', # detauls to 30 seconds
+    strip_default_xmlns => 1, # defaults to 1
   });
 
 This constructor requires uri, proxy and xmlns to be
 supplied, otherwise it will croak.
 
+strip_default_xmlns is used to remove xmlns="http://.../"
+from returned XML, it will NOT alter xmlns:FOO="http//.../"
+set to '0' if you do not wish for this to happen.
+
 =cut
 
 # Get an XML Parser
 my $parser = XML::LibXML->new();
+$parser->validation(0);
+$parser->expand_entities(0);
 
-my @config_methods = qw(uri xmlns proxy soapversion);
+my @config_methods = qw(uri xmlns proxy soapversion strip_default_xmlns);
 
 sub new {
         my ($proto,$conf) = @_;
@@ -101,6 +108,7 @@ sub new {
 	# Set up default soapversion and timeout
 	$conf->{soapversion} = '1.1' unless defined $conf->{soapversion};
 	$conf->{timeout} = '30' unless defined $conf->{soapversion};
+	$conf->{strip_default_xmlns} = 1 unless defined $conf->{strip_default_xmlns};
 
 	# Read in the required params
 	foreach my $soap_conf (@config_methods) {
@@ -148,7 +156,7 @@ If all is successful the the XML string will be parsed back.
 This still has all the SOAP wrapper stuff on it, so you'll
 want to strip that out. 
 
-We check for soap:Fault and soapenv:Fault in the returned XML,
+We check for Fault/faultstring in the returned XML,
 anything else you'll need to check for yourself.
 
 =cut
@@ -156,7 +164,18 @@ anything else you'll need to check for yourself.
 sub fetch {
 	my ($self,$conf) = @_;
 
-	# process the XML	
+	# Check we have at least an empty string	
+	if(!defined $conf->{xml}) {
+		$self->error('You must supply at least an empty string for the xml');
+		return undef;
+	}
+	if(!defined $conf->{method} or $conf->{method} eq '') {
+		$self->error('You must supply a method name');
+		return undef;
+	}
+
+	# add some wrapping paper so XML::LibXML likes it with no top level
+	$conf->{xml} = '<soap_lite_wrapper>' . $conf->{xml} . '</soap_lite_wrapper>';
 	my $xml;
 	eval { $xml = $parser->parse_string($conf->{xml}) };
 	if($@) {
@@ -168,11 +187,17 @@ sub fetch {
 	$self->{sdb} = SOAP::Data::Builder->new();
 
 	# Create the SOAP data from the XML
-	if( my $nodes = $xml->childNodes ) {
+	my $nodes = $xml->childNodes;
+	my $top = $nodes->get_node(1); # our wrapper
+	if( my $nodes = $top->childNodes ) {
 		foreach my $node (@{$nodes}) {
 			$self->_process_node({node => $node});
 		}	
 	}	
+
+	################
+	## Execute the call and get the result back
+	################
 
 	# execute the call in the relevant style
 	my $res = $self->_call($conf->{method});
@@ -182,6 +207,10 @@ sub fetch {
                 $self->error($res);
                 return undef;
         } else {
+		# Strip out crap default name space stuff as it makes it hard
+		# to parse and there's no reason for it I can see!
+		$res =~ s/xmlns=".+?"//g if $self->strip_default_xmlns();	
+
 		# Generate xml object from the responce
 		my $res_xml;
 		eval { $res_xml = $parser->parse_string($res) };
@@ -191,20 +220,21 @@ sub fetch {
 			return undef;
 		} else {
 			
-			# Now look for faults
-			# I hope it's only soap:Fault and soapenv:Fault I need to check
-			my @fault_types = ('soap:Fault','soapenv:Fault');	
-
-			foreach my $type (@fault_types) {
-				# Stick in an eval block as it blows up if searching for a namespace
-				# which isn't there, and one of them won't be!	
-				eval {
-					if(my $nodes = $res_xml->findnodes("//$type/faultstring") ) {
-						# There is some sort of fault, get the human readable string
-						$self->error($nodes->get_node(1)->findvalue('.' , $nodes));	
+			# Now look for faults	
+			if(my $nodes = $res_xml->findnodes("//faultstring") ) {
+				# loop through faultstrings - checking it's parent is 'Fault'
+				# We do not care about namespaces
+				foreach my $node ($nodes->get_nodelist()) {
+					my $parentnode = $node->parentNode();
+					if($parentnode->nodeName() =~ /Fault/) {
+						# There is a "(*:)Fault/faultstring"
+						# get the human readable string
+						$self->error($nodes->get_node(1)->findvalue('.' , $nodes));
+						last;	
 					}
-				};
+				}	
 			}
+
 			# See if there was a fault
 			return undef if $self->error();
 
@@ -253,10 +283,11 @@ sub _process_node {
 	$parent = $conf->{parent} if defined $conf->{parent};
 
 	my $type = 'string';
-
 	# Extract the attributes from the node
 	my %attribs;
 	foreach my $att ($conf->{node}->attributes()) {
+		# skip anything which isn't defined!
+		next unless defined $att;
 		# Check if it's out 'special' value
 		if($att->name() eq '_value_type') {
 			$type = $att->value();

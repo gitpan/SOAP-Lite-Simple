@@ -6,7 +6,7 @@ use Carp;
 use vars qw($VERSION);
 use base qw(SOAP::Lite::Simple);
 
-$VERSION = 1.0;
+$VERSION = 1.1;
 
 =head1 NAME
 
@@ -83,10 +83,15 @@ the xmlns.
     xmlns 	=> 'http://www.yourdomain.com/services',
     soapversion => '1.1', # defaults to 1.1
     timeout	=> '30', # detauls to 30 seconds
+    strip_default_xmlns => 1, # defaults to 1
   });
 
 This constructor requires uri, proxy and xmlns to be
 supplied, otherwise it will croak.
+
+strip_default_xmlns is used to remove xmlns="http://.../"
+from returned XML, it will NOT alter xmlns:FOO="http//.../"
+set to '0' if you do not wish for this to happen.
 
 =head2 fetch()
 
@@ -115,7 +120,7 @@ If all is successful the the XML string will be parsed back.
 This still has all the SOAP wrapper stuff on it, so you'll
 want to strip that out.
 
-We check for soap:Fault and soapenv:Fault in the returned XML,
+We check for Fault/faultstring in the returned XML,
 anything else you'll need to check for yourself.
 
 =cut

@@ -6,7 +6,7 @@ use Carp;
 use vars qw($VERSION);
 use base qw(SOAP::Lite::Simple);
 
-$VERSION = 1.0;
+$VERSION = 1.1;
 
 =head1 NAME
 
@@ -81,10 +81,15 @@ and does not put in namesp<X>
     xmlns 	=> 'http://www.yourdomain.com/services',
     soapversion => '1.1', # defaults to 1.1
     timeout	=> '30', # detauls to 30 seconds
+    strip_default_xmlns => 1, # defaults to 1
   });
 
 This constructor requires uri, proxy and xmlns to be
 supplied, otherwise it will croak.
+
+strip_default_xmlns is used to remove xmlns="http://.../"
+from returned XML, it will NOT alter xmlns:FOO="http//.../"
+set to '0' if you do not wish for this to happen.
 
 =head2 fetch()
 
@@ -114,7 +119,7 @@ If all is successful the the XML string will be parsed back.
 This still has all the SOAP wrapper stuff on it, so you'll
 want to strip that out.
 
-We check for soap:Fault and soapenv:Fault in the returned XML,
+We check for Fault/faultstring in the returned XML,
 anything else you'll need to check for yourself.
 
 =cut
@@ -122,16 +127,17 @@ anything else you'll need to check for yourself.
 sub _call {
 	my ($self,$method) = @_;
 
+
 	# No, I don't know why this has to be a sub, it just does,
 	# it's to do with the on_action which .net requires so it
 	# submits as $uri/$method, rather than $uri#$method	
 	my $soap_action = sub {return $self->uri() . '/' . $method};
-	
+
 	my $caller = $self->{soap}
  			->uri($self->uri())
 			->proxy($self->proxy(), timeout => $self->timeout())
 			->on_action( $soap_action );
-	
+
 	$caller->soapversion($self->soapversion());
 
 	# Create a SOAP::Data node for the method name
