@@ -1,5 +1,12 @@
 Revision history
 
+1.2 Sat 6th Aug 2005
+	- Updated docs - replacing soap:Fault with Fault/faultstring
+	- Updated docs - lots of minor things and reorganise packages
+	- added 'filename' option, instead of 'xml' for fetch()
+	- fetch() now returns 1 or undef 
+		- use $obj->results() or $obj->results_xml() to get data
+
 1.1 Mon 1st Aug 2005
 	- Updated documentation
 	- Added XML wrapper so can parse several top level nodes,

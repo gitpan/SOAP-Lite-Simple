@@ -4,7 +4,7 @@ use strict;
 use Data::Dumper;
 use Carp;
 use blib;
-use Test::More tests => 3;
+use Test::More tests => 5;
 #use SOAP::Lite ( +trace => 'all', readable => 1, outputxml => 1, );
 
 BEGIN { use_ok( 'SOAP::Lite::Simple::DotNet' ); }
@@ -22,24 +22,41 @@ my $xml = "
 <fromMetricWeightUnit>kilogram</fromMetricWeightUnit>
 <toMetricWeightUnit>microgram</toMetricWeightUnit>";
 
-# Call the SOAP
-if( $obj->fetch({
-	'method' => 'ChangeMetricWeightUnit',
-	'xml' => $xml,
-}) ) {
-	ok(1,"fetch() - no errors");
+my $method = 'ChangeMetricWeightUnit';
 
-	my $xml_res = $obj->results_xml();
-	my $nodes = $xml_res->findnodes("//ChangeMetricWeightUnitResult");
+my %xml_conf = (
+	method => $method,
+	xml => $xml,
+	name => 'pass_in_xml',
+);
 
-	if(my $node = $nodes->get_node(1)) {
-		my $value = $node->findvalue('.',$node);
-		is('10100000000',$value,'got conversion expected');
+fetch(\%xml_conf);
+
+my %file_conf = (
+	method => $method,
+	filename => 't/dot_net.xml',
+	name => 'xml_from_file',
+);
+
+fetch(\%file_conf);
+
+sub fetch {
+	my $conf = shift;
+	# Call the SOAP
+	if( $obj->fetch($conf) ) {
+		ok(1, $conf->{name} . " fetch() - no errors");
+
+		my $xml_res = $obj->results_xml();
+		my $nodes = $xml_res->findnodes("//ChangeMetricWeightUnitResult");
+
+		if(my $node = $nodes->get_node(1)) {
+			my $value = $node->findvalue('.',$node);
+			is('10100000000',$value,$conf->{name} . ' got conversion expected');
+		} else {
+			ok(0,$conf->{name} . ' could not get result from .Net data returned');
+		}
 	} else {
-		ok(0,'could not get result from .Net data returned');
+		ok(0,$conf->{name} . 'Could not fetch data');
+		ok(0,$conf->{name} . 'Error:' . $obj->error());
 	}
-} else {
-	ok(0,'Could not fetch data');
-	ok(0,'Error:' . $obj->error());
 }
-

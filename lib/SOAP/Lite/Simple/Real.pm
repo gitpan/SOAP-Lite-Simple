@@ -6,7 +6,22 @@ use Carp;
 use vars qw($VERSION);
 use base qw(SOAP::Lite::Simple);
 
-$VERSION = 1.1;
+$VERSION = 1.2;
+
+# Actually do the call
+sub _call {
+	my ($self,$method) = @_;
+
+	my $res = $self->{soap}
+ 			->uri($self->uri())
+			->proxy($self->proxy(), timeout => $self->timeout())
+			->soapversion($self->soapversion())
+			->$method( $self->{sdb}->to_soap_data() );
+	return $res;
+}
+
+1;
+__END__
 
 =head1 NAME
 
@@ -47,6 +62,7 @@ the xmlns.
     xmlns 		=> 'http://www.yourdomain.com/services',
     soapversion 	=> '1.1', # defaults to 1.1
     timeout		=> '30', # detauls to 30 seconds
+    strip_default_xmlns => 1, # defaults to 1
   });
 
 
@@ -54,18 +70,21 @@ the xmlns.
 
   my $user_id = '900109';
   my $xml = "<userId _value_type='long'>$user_id</userId>";
+
+  ###########
   # IMPORTANT: you must set _value_type to long - matching the requirement of the SOAP server
+  ###########
 
   # Actually do the call
   if( $soap_simple->fetch({
                          'method' => 'GetActivity',
                          'xml' => $xml,
                      }) ) {
+		      # Get result as a string
+		      my $xml_string = $soap_simple->result();
 
-                     # extract the results (XML string)
-                     my $xml_results = $obj->results;
-
-                     # Now validate the XML
+		      # Get result as a XML::LibXML object
+		      my $xml_libxml_object = $soap_simple->result_xml();
 
   } else {
     # Got an error
@@ -99,16 +118,16 @@ set to '0' if you do not wish for this to happen.
   my $user_id = '900109';
   my $xml = "<userId _value_type='long'>$user_id</userId>";
 
-  if(my $xml_result = $soap_simple->fetch({ method => 'GetActivity', xml => $xml }) {
-	# You got some XML back
-	my $parser = XML::LibXML->new();
-	my $doc = $parser->parse_string($xml_result);
+  if($soap_simple->fetch({ method => 'GetActivity', xml => $xml }) {
+      # Get result as a string
+      my $xml_string = $soap_simple->result();
 
-	# now validate the XML is what you were expecting.
+      # Get result as a XML::LibXML object
+      my $xml_libxml_object = $soap_simple->result_xml();
 
   } else {
-	# There was some sort of error
-	print $soap_simple->error() . "\n";
+      # There was some sort of error
+      print $soap_simple->error() . "\n";
   }
 
 This method actually calls the web service, it takes a method name
@@ -116,36 +135,27 @@ and an xml string. If there is a problem with either the XML or
 the SOAP transport (e.g. web server error/could not connect etc)
 undef will be returned and the error() will be set.
 
-If all is successful the the XML string will be parsed back.
-This still has all the SOAP wrapper stuff on it, so you'll
-want to strip that out.
+Each node in the XML supplied (either by string or from a filename)
+needs to have _value_type defined or the submitted format will
+default to 'string'.
+
+You can supply 'filename' rather than 'xml' and it will read in from
+the file.
 
 We check for Fault/faultstring in the returned XML,
 anything else you'll need to check for yourself.
 
+
 =cut
-
-sub _call {
-	my ($self,$method) = @_;
-
-	my $res = $self->{soap}
- 			->uri($self->uri())
-			->proxy($self->proxy(), timeout => $self->timeout())
-			->soapversion($self->soapversion())
-			->$method( $self->{sdb}->to_soap_data() );
-	
-	return $res;
-
-}
 
 =head2 error()
 
-  $self->error();
+  $soap_simple->error();
 
-If fetch returns undef then check this method, it will either be that the XML
-you supplied was not correctly formatted and XML::LibXML could not parse it, there was
-a transport error with the web service or either soap:Fault and soapenv:Fault error
-messages were returned in the XML.
+If fetch returns undef then check this method, it will either be that the filename you
+supplied couldn't be read, the XML you supplied was not correctly formatted (XML::LibXML
+could not parse it), there was a transport error with the web service or Fault/faultstring
+was found in the XML returned.
 
 =head2 results();
 
@@ -196,7 +206,7 @@ terms as perl itself.
 
 =head1 SEE ALSO
 
-  <SOAP::Lite::Simple>, <SOAP::Lite::Simple::DotNet> 
+  <SOAP::Lite::Simple::DotNet>, <SOAP::Lite::Simple> 
 
 =cut
 
