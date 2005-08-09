@@ -7,15 +7,17 @@ use SOAP::Lite;
 use SOAP::Data::Builder;
 use File::Slurp;
 
-use vars qw($VERSION);
+use vars qw($VERSION $DEBUG);
 
-use base qw(Class::Accessor::Chained::Fast);
+use base qw(Class::Accessor::Fast);
 
 my @methods = qw(results results_xml uri xmlns proxy soapversion timeout error strip_default_xmlns);
 
 __PACKAGE__->mk_accessors(@methods);
 
-$VERSION = 1.2;
+$DEBUG = 0;
+
+$VERSION = 1.3;
 
 # Get an XML Parser
 my $parser = XML::LibXML->new();
@@ -85,33 +87,44 @@ sub fetch {
 		}
 	}
 
-	# add some wrapping paper so XML::LibXML likes it with no top level
-	$conf->{xml} = '<soap_lite_wrapper>' . $conf->{xml} . '</soap_lite_wrapper>';
-	my $xml;
-	eval { $xml = $parser->parse_string($conf->{xml}) };
-	if($@) {
-		$self->error('Error parsing your XML: ' . $@);
-		return undef;
-	}
 
       	# create a builder
 	$self->{sdb} = SOAP::Data::Builder->new();
 
-	# Create the SOAP data from the XML
-	my $nodes = $xml->childNodes;
-	my $top = $nodes->get_node(1); # our wrapper
-	if( my $nodes = $top->childNodes ) {
-		foreach my $node (@{$nodes}) {
-			$self->_process_node({node => $node});
+	unless($conf->{xml} eq '') {
+		# add some wrapping paper so XML::LibXML likes it with no top level
+		my $xml_data = '<soap_lite_wrapper>' . $conf->{xml} . '</soap_lite_wrapper>';
+		my $xml;
+		eval { $xml = $parser->parse_string($xml_data) };
+		if($@) {
+			$self->error('Error parsing your XML: ' . $@);
+			return undef;
+		}
+		# Create the SOAP data from the XML
+		my $nodes = $xml->childNodes;
+		my $top = $nodes->get_node(1); # our wrapper
+		if( my $nodes = $top->childNodes ) {
+			foreach my $node (@{$nodes}) {
+				$self->_process_node({node => $node});
+			}	
 		}	
-	}	
+	}
 
 	################
 	## Execute the call and get the result back
 	################
 
+	carp "About to run _call()" if $DEBUG;
+#use Data::Dumper;
+#print Dumper($self->{sdb}->to_soap_data());
+#my $serialized_xml = SOAP::Serializer->autotype(0)->serialize( $self->{sdb}->to_soap_data() );
+#carp "IF WE GET HERE IT WORKED!!!!!!!";
+#print Dumper($self->{sdb}->elems());
+
 	# execute the call in the relevant style done by the child object
 	my $res = $self->_call($conf->{method});
+
+	carp "After run _call()" if $DEBUG;
 
 	if (!defined $res or $res =~ /^\d/) {
                 # Got a web error - if it was XML it wouldn't start with a digit!
@@ -165,19 +178,26 @@ sub fetch {
 sub _process_node {
 	my ($self,$conf) = @_;
 
-	# Loop over the XML and generate the data
-	
+	# We never access text nodes directly, only via the parent node
+	return if $conf->{node}->nodeType == 3;
+
+	carp "PROCESSING: " . $conf->{node}->nodeName() if $DEBUG;
+
 	# Set up the parent if there was one
-	my $parent = '';
+	my $parent = undef;
 	$parent = $conf->{parent} if defined $conf->{parent};
 
-	my $type = 'string';
+	if($DEBUG && defined $parent) {
+		carp "PARENT NAME:" . $parent->{fullname};
+	}
+
+	my $type = undef;
 	# Extract the attributes from the node
 	my %attribs;
 	foreach my $att ($conf->{node}->attributes()) {
 		# skip anything which isn't defined!
 		next unless defined $att;
-		# Check if it's out 'special' value
+		# Check if it's our 'special' value
 		if($att->name() eq '_value_type') {
 			$type = $att->value();
 		} else {
@@ -185,36 +205,51 @@ sub _process_node {
 		}
 	}
 	
-	my $value = '';
 	my @t = $conf->{node}->childNodes();
-	if(scalar(@t) == 1) {
-		# at the end of the line, just got the value node below get the value
-		$value = $conf->{node}->textContent();
-
-		$parent = $self->{sdb}->add_elem(
+	# If we have 1 child and that child is text then use the content
+	# of the child as our value we must also be at the end of the tree
+	if(scalar(@t) == 1 && $conf->{node}->childNodes()->get_node(1)->nodeType() == 3) {
+		#return;
+		my $value = $conf->{node}->childNodes()->get_node(1)->textContent();
+		carp "ADDING : " . $conf->{node}->nodeName . " Value: $value" if $DEBUG;
+		$self->{sdb}->add_elem(
 			name => $conf->{node}->nodeName, 
 			attributes => \%attribs,
 			parent => $parent,
 			value => $value,
 			type => $type,
 		);
-
+	
+		carp "END OF THE LINE BUDDY!" if $DEBUG;
 	} else {
+		carp "- FOUND CHILD NODES" if $DEBUG;
 		# Add it - it's a node without a value, but has child nodes
-		$parent = $self->{sdb}->add_elem(
+		my $obj;
+		if(defined $parent) {
+			carp "ADDING ELEMENT WITH PARENT: " . $conf->{node}->nodeName if $DEBUG;
+			# Add with the parent
+			$obj  = $self->{sdb}->add_elem(
 				name => $conf->{node}->nodeName, 
 				attributes => \%attribs,
 				parent => $parent,
-				type => $type,
 			);
+		} else {	
+			carp "ADDING ELEMENT WITH NO PARENT: " . $conf->{node}->nodeName if $DEBUG;
+			# Add with the parent
+			# Add without parent
+			$obj  = $self->{sdb}->add_elem(
+				name => $conf->{node}->nodeName, 
+				attributes => \%attribs,
+			);
+		}
 
 		foreach my $node ( $conf->{node}->childNodes() ) {
 			# process each child node as long as it's not
 			# a text node (type 3)
 			$self->_process_node({ 
 				'node' => $node, 
-				'parent' => $parent,
-			}) if $node->nodeType != 3;
+				'parent' => $obj,
+			});
 		}
 	}
 }
@@ -240,7 +275,7 @@ It's designed to be REALLY simple to use.
 
 =head1 SYNOPSIS
 
-  See SOAP::Lite::Simple::DotNet for usage example.
+  See SOAP::Lite::Simple::DotNet or SOAP::Lite::Simple::Real for usage example.
 
   If you are creating a child class you just need to
   impliment the actual _call() - see pod below.

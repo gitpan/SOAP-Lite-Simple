@@ -1,6 +1,6 @@
 use ExtUtils::MakeMaker;
 
-my $VERSION = '1.2';
+my $VERSION = '1.3';
 
 my $ABSTRACT = "Module for simply interacting with webservices";
 
@@ -15,5 +15,6 @@ WriteMakefile(
 		'XML::LibXML' 		=> 0.6,
 		'Test::More' 	=> 0.6,
 		'File::Slurp' 	=> 0.1,
+		'Class::Accessor::Fast' => 0.19,
     	}, 
 );

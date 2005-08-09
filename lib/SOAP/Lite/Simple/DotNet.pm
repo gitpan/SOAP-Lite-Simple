@@ -6,7 +6,7 @@ use Carp;
 use vars qw($VERSION);
 use base qw(SOAP::Lite::Simple);
 
-$VERSION = 1.2;
+$VERSION = 1.3;
 
 # The actual call to a .net server
 sub _call {
