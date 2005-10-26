@@ -17,7 +17,7 @@ __PACKAGE__->mk_accessors(@methods);
 
 $DEBUG = 0;
 
-$VERSION = 1.3;
+$VERSION = 1.4;
 
 # Get an XML Parser
 my $parser = XML::LibXML->new();
@@ -35,7 +35,7 @@ sub new {
 
 	# Set up default soapversion and timeout
 	$conf->{soapversion} = '1.1' unless defined $conf->{soapversion};
-	$conf->{timeout} = '30' unless defined $conf->{soapversion};
+	$conf->{timeout} = '30' unless defined $conf->{timeout};
 	$conf->{strip_default_xmlns} = 1 unless defined $conf->{strip_default_xmlns};
 
 	# Read in the required params

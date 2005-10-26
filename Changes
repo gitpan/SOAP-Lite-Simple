@@ -1,5 +1,9 @@
 Revision history
 
+1.4 Wed 26th Oct 2005
+	- Bug fix, timeout was only being set unless soapversion was defined!
+		- thanks Leon
+
 1.3 Wed 9th Aug 2005
 	- Added Class::Accessor::Fast to prereq as it was missing
 	- MAJOR Bug fix with processing user supplied XML
