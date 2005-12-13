@@ -3,15 +3,11 @@ package SOAP::Lite::Simple::DotNet;
 use strict;
 use Carp;
 
-use vars qw($VERSION);
 use base qw(SOAP::Lite::Simple);
-
-$VERSION = 1.3;
 
 # The actual call to a .net server
 sub _call {
 	my ($self,$method) = @_;
-
 
 	# No, I don't know why this has to be a sub, it just does,
 	# it's to do with the on_action which .net requires so it
@@ -21,7 +17,8 @@ sub _call {
 	my $caller = $self->{soap}
  			->uri($self->uri())
 			->proxy($self->proxy(), timeout => $self->timeout())
-			->on_action( $soap_action );
+                        ->encoding($self->encoding)
+                        ->on_action( $soap_action );
 
 	$caller->soapversion($self->soapversion());
 

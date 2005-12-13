@@ -11,13 +11,13 @@ use vars qw($VERSION $DEBUG);
 
 use base qw(Class::Accessor::Fast);
 
-my @methods = qw(results results_xml uri xmlns proxy soapversion timeout error strip_default_xmlns);
+my @methods = qw(results results_xml uri xmlns proxy soapversion timeout error strip_default_xmlns encoding);
 
 __PACKAGE__->mk_accessors(@methods);
 
 $DEBUG = 0;
 
-$VERSION = 1.4;
+$VERSION = 1.5;
 
 # Get an XML Parser
 my $parser = XML::LibXML->new();
@@ -25,7 +25,7 @@ $parser->validation(0);
 $parser->expand_entities(0);
 
 # which methods should be set on object constructor
-my @config_methods = qw(uri xmlns proxy soapversion strip_default_xmlns);
+my @config_methods = qw(uri xmlns proxy soapversion strip_default_xmlns encoding);
 
 sub new {
         my ($proto,$conf) = @_;
@@ -37,6 +37,15 @@ sub new {
 	$conf->{soapversion} = '1.1' unless defined $conf->{soapversion};
 	$conf->{timeout} = '30' unless defined $conf->{timeout};
 	$conf->{strip_default_xmlns} = 1 unless defined $conf->{strip_default_xmlns};
+        $conf->{encoding} ||= 'utf-8';
+
+        if ($conf->{disable_base64}) {
+            *SOAP::Serializer::as_base64 = sub {
+                my $self = shift;
+                my($value, $name, $type, $attr) = @_;
+                return [$name, {'xsi:type' => 'xsd:string', %$attr}, $value];
+            };
+        }
 
 	# Read in the required params
 	foreach my $soap_conf (@config_methods) {
@@ -299,6 +308,20 @@ supplied, otherwise it will croak.
 strip_default_xmlns is used to remove xmlns="http://.../"
 from returned XML, it will NOT alter xmlns:FOO="http//.../"
 set to '0' if you do not wish for this to happen.
+
+If you pass an encoding option then the SOAP message will be flagged
+as that encoding (this defaults to UTF8):
+
+   ...
+     encoding => 'iso-8859-1',
+   ...
+
+To stop SOAP::Lite being overly keen to encode values as Base64, pass
+in disable_base64:
+
+   ...
+     disable_base64 => 1,
+   ...
 
 =head2 fetch()
 

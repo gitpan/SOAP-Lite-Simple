@@ -3,10 +3,7 @@ package SOAP::Lite::Simple::Real;
 use strict;
 use Carp;
 
-use vars qw($VERSION);
 use base qw(SOAP::Lite::Simple);
-
-$VERSION = 1.3;
 
 # Actually do the call
 sub _call {
@@ -16,6 +13,7 @@ sub _call {
  			->uri($self->uri())
 			->proxy($self->proxy(), timeout => $self->timeout())
 			->soapversion($self->soapversion())
+                        ->encoding($self->encoding)
 			->$method( $self->{sdb}->to_soap_data() );
 	return $res;
 }

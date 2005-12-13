@@ -1,5 +1,8 @@
 Revision history
 
+1.5 Tue Dec 13 11:26:06 GMT 2005
+        - Add encoding() and disable_base64() methods (patch by Leon)
+
 1.4 Wed 26th Oct 2005
 	- Bug fix, timeout was only being set unless soapversion was defined!
 		- thanks Leon
