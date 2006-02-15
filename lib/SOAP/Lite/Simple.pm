@@ -11,13 +11,16 @@ use vars qw($VERSION $DEBUG);
 
 use base qw(Class::Accessor::Fast);
 
-my @methods = qw(results results_xml uri xmlns proxy soapversion timeout error strip_default_xmlns encoding);
+my @methods = qw(results results_xml uri xmlns proxy soapversion timeout error 
+strip_default_xmlns encoding);
+
+# wsdk
 
 __PACKAGE__->mk_accessors(@methods);
 
 $DEBUG = 0;
 
-$VERSION = 1.5;
+$VERSION = 1.6;
 
 # Get an XML Parser
 my $parser = XML::LibXML->new();
@@ -28,24 +31,30 @@ $parser->expand_entities(0);
 my @config_methods = qw(uri xmlns proxy soapversion strip_default_xmlns encoding);
 
 sub new {
-        my ($proto,$conf) = @_;
-        my $class = ref($proto) || $proto;
-        my $self = {};
-        bless($self,$class);
+	my ($proto,$conf) = @_;
+	my $class = ref($proto) || $proto;
+	my $self = {};
+	bless($self,$class);
 
 	# Set up default soapversion and timeout
 	$conf->{soapversion} = '1.1' unless defined $conf->{soapversion};
 	$conf->{timeout} = '30' unless defined $conf->{timeout};
 	$conf->{strip_default_xmlns} = 1 unless defined $conf->{strip_default_xmlns};
-        $conf->{encoding} ||= 'utf-8';
+	$conf->{encoding} ||= 'utf-8';
+	
+	# There is a WDSL file - process it
+	if(defined $conf->{wsdl}) {
+		$self->wsdl($conf->{wsdl});
+		$self->_process_wsdl();
+	}
 
-        if ($conf->{disable_base64}) {
-            *SOAP::Serializer::as_base64 = sub {
-                my $self = shift;
-                my($value, $name, $type, $attr) = @_;
-                return [$name, {'xsi:type' => 'xsd:string', %$attr}, $value];
-            };
-        }
+	if ($conf->{disable_base64}) {
+		*SOAP::Serializer::as_base64Binary = sub {
+			my $self = shift;
+			my($value, $name, $type, $attr) = @_;
+			return [$name, {'xsi:type' => 'xsd:string', %$attr}, $value];
+		};
+	}
 
 	# Read in the required params
 	foreach my $soap_conf (@config_methods) {
@@ -60,10 +69,27 @@ sub new {
 	$self->{soap} = SOAP::Lite->new;
 	# We want the raw XML back
 	$self->{soap}->outputxml(1);
+	
 
 	return $self;
 
 };
+
+#sub _process_wsdl {
+#	my $self = shift;
+#	my $services = SOAP::Schema->schema_url($self->wsdl())->parse()->services();
+#	use Data::Dumper; #print STDERR Dumper($services);
+#
+#	foreach my $class (values %$services) {
+#		print "C: $class\n";
+#		foreach my $method (keys %$class) {
+#			print "M: $method\n";
+#			print Dumper($class->{$method});
+#			$self->{proxies}->{$method} = $class->{$method}->{endpoint}->value();
+#			$self->{uris}->{$method} = $class->{$method}->{uri}->value();
+#		}
+#	}
+#}
 
 sub fetch {
 	my ($self,$conf) = @_;
