@@ -110,7 +110,7 @@ and does not put in namesp<X>
 
 =head2 new()
 
-  my $soap_simple->SOAP::Lite::Simple::DotNet->new({
+  my $soap_simple = SOAP::Lite::Simple::DotNet->new({
     uri 	=> 'http://www.yourdomain.com/services',
     proxy 	=> 'http://www.yourproxy.com/services/services.asmx',
     xmlns 	=> 'http://www.yourdomain.com/services',

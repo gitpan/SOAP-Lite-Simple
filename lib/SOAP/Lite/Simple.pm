@@ -20,7 +20,7 @@ __PACKAGE__->mk_accessors(@methods);
 
 $DEBUG = 0;
 
-$VERSION = 1.6;
+$VERSION = 1.7;
 
 # Get an XML Parser
 my $parser = XML::LibXML->new();
@@ -319,7 +319,7 @@ It's designed to be REALLY simple to use.
 
 =head2 new()
 
-  my $soap_simple->SOAP::Lite::Simple::DotNet->new({
+  my $soap_simple = SOAP::Lite::Simple::DotNet->new({
     uri 	=> 'http://www.yourdomain.com/services',
     proxy 	=> 'http://www.yourproxy.com/services/services.asmx',
     xmlns 	=> 'http://www.yourdomain.com/services',

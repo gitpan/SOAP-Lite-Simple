@@ -94,7 +94,7 @@ the xmlns.
 
 =head2 new()
 
-  my $soap_simple->SOAP::Lite::Simple::Real->new({
+  my $soap_simple = SOAP::Lite::Simple::Real->new({
     uri 	=> 'http://www.yourdomain.com/services',
     proxy 	=> 'http://www.yourproxy.com/services',
     xmlns 	=> 'http://www.yourdomain.com/services',

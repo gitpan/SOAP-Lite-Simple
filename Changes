@@ -1,5 +1,8 @@
 Revision history
 
+1.7 Sun Mar 12 09:08:50 GMT 2006
+	- Doc patch - thanks to Scott Lanning for the spot
+
 1.6 Wed Feb 15 11:23:12 GMT 2005
         - Update to support new base64 in SOAP::Lite 0.67 (patch by Leon)
 
