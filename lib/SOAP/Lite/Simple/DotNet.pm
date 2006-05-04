@@ -86,6 +86,7 @@ and does not put in namesp<X>
 
   ###########
   # IMPORTANT: you must set _value_type to long - matching the requirement in the services.asmx
+  # DotNet doesn't play nice otherwise, defaults to string if not supplied
   ###########
 
   # Actually do the call
@@ -151,7 +152,7 @@ the SOAP transport (e.g. web server error/could not connect etc)
 undef will be returned and the error() will be set.
 
 Each node in the XML supplied (either by string or from a filename)
-needs to have _value_type defined or the submitted format will
+should have _value_type defined or the submitted format may
 default to 'string'.
 
 You can supply 'filename' rather than 'xml' and it will read in from

@@ -1,5 +1,8 @@
 Revision history
 
+1.8 Thur May 4 16:18:00 GMT 2006
+	- Doc tweek about _value_type, it's only .net that REALLY needs it
+
 1.7 Sun Mar 12 09:08:50 GMT 2006
 	- Doc patch - thanks to Scott Lanning for the spot
 
