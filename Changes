@@ -1,5 +1,8 @@
 Revision history
 
+1.9 Wed Aug 30 2006
+	- Depreciating in favour of SOAP::XML::Client
+
 1.8 Thur May 4 16:18:00 GMT 2006
 	- Doc tweek about _value_type, it's only .net that REALLY needs it
 
